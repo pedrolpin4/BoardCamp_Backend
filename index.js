@@ -134,7 +134,7 @@ app.get("/customers/:id", async (req, res) => {
 
 
 
-// validar regexxxxxxxxxxxxxxxxxx
+// validar regexxxxxxxxxxxxxxx
 
 app.post("/customers", async (req, res) => {
     try{
