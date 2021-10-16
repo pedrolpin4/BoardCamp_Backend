@@ -2,6 +2,7 @@ import express from "express"
 import cors from "cors"
 import pg from 'pg';
 import Joi from "joi";
+import dayjs from "dayjs";
 
 const app = express();
 const { Pool } = pg;
@@ -43,7 +44,7 @@ app.post("/categories", async (req, res) => {
             return;
         } 
 
-        await connection.query('INSERT INTO categories (name) VALUES ($1)', [requestCategory.name])
+        await connection.query('INSERT INTO categories (name) VALUES ($1);', [requestCategory.name])
         res.sendStatus(201);
 
     } catch(error){
@@ -100,7 +101,7 @@ app.post("/games", async(req, res) => {
             return;
         }
 
-        await connection.query('INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5)', 
+        await connection.query('INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5);', 
         [name, image, stockTotal, pricePerDay, categoryId]);
         res.sendStatus(201);
 
@@ -156,7 +157,7 @@ app.post("/customers", async (req, res) => {
             return;
         }
 
-        const customersResult = await connection.query('SELECT * FROM customers');
+        const customersResult = await connection.query('SELECT * FROM customers;');
         const customers = customersResult.rows
         
         if(customers.some(customer => customer.cpf === cpf)){
@@ -164,7 +165,7 @@ app.post("/customers", async (req, res) => {
             return;
         }
 
-        await connection.query('INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)',
+        await connection.query('INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4);',
         [name, phone, cpf, birthday])
         res.sendStatus(201)
 
@@ -197,7 +198,7 @@ app.put("/customers/:id", async (req, res) => {
             return;
         }
 
-        const customersResult = await connection.query('SELECT * FROM customers');
+        const customersResult = await connection.query('SELECT * FROM customers;');
         const customers = customersResult.rows
         
         if(customers.some(customer => customer.cpf === cpf)){
@@ -205,7 +206,7 @@ app.put("/customers/:id", async (req, res) => {
             return;
         }
 
-        await connection.query('UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5',
+        await connection.query('UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5;',
         [name, phone, cpf, birthday, id])
         res.sendStatus(201)
 
@@ -251,7 +252,33 @@ app.post("/rentals", async(req, res) => {
             daysRented
         } = sentRental
 
+        const daysSquema = Joi.number().min(1).integer().required();
+
+        const requisitionGame = await connection.query('SELECT * FROM games WHERE id = $1;', [gameId])
+        const requisitionCustomer = await connection.query('SELECT * FROM customers WHERE id = $1;', [customerId])
+        
+        if(!requisitionGame.rows.length 
+            || !requisitionCustomer.rows.length 
+            || daysSquema.validate(Number(daysRented)).error){
+            res.sendStatus(400)
+            return;
+        }
+
+        const{
+            pricePerDay
+        } = requisitionGame.rows[0];
+
+        const rentDate = dayjs().format('YYYY-MM-DD');
+        const originalPrice = Number(pricePerDay) * Number(daysRented);
+
+        await connection.query(`INSERT INTO rentals 
+            ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") 
+            VALUES ($1, $2, $3, $4, null, $5, null)`, 
+            [customerId, gameId, rentDate, daysRented, originalPrice]);
+        
+        res.sendStatus(201)
     } catch(error){
+        console.log(error);
         res.sendStatus(500);
     }
 })
