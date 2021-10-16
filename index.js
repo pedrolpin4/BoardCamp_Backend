@@ -197,6 +197,14 @@ app.put("/customers/:id", async (req, res) => {
             return;
         }
 
+        const customersResult = await connection.query('SELECT * FROM customers');
+        const customers = customersResult.rows
+        
+        if(customers.some(customer => customer.cpf === cpf)){
+            res.sendStatus(409)
+            return;
+        }
+
         await connection.query('UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5',
         [name, phone, cpf, birthday, id])
         res.sendStatus(201)
@@ -226,7 +234,7 @@ app.get("/rentals", async(req,res) => {
             return;
         }
 
-        const rentals = await connection.query('SELECT * FROM rentals')
+        const rentals = await connection.query('SELECT * FROM rentals;')
         res.send(rentals.rows)
 
     } catch(error){
@@ -243,14 +251,24 @@ app.post("/rentals", async(req, res) => {
             daysRented
         } = sentRental
 
-        const rentalSquema = Joi.object({
-            customerId: Joi.number()
-        })
-        
-
     } catch(error){
         res.sendStatus(500);
     }
+})
+
+app.delete("/rentals/:id", async (req, res)=> {
+    const { id } = req.params;
+    const requiredRental = await connection.query('SELECT * FROM rentals WHERE id = $1;', [id])
+    if(!requiredRental.rows.length){
+        res.sendStatus(404)
+    }
+    
+    if(requiredRental.rows[0].returnDate){
+        res.sendStatus(400)
+    }
+
+    await connection.query('DELETE FROM rentals WHERE id = $1;', [id])
+    res.sendStatus(200)
 })
 
 
