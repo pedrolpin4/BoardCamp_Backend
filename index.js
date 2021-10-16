@@ -96,7 +96,7 @@ app.post("/games", async(req, res) => {
 
         const gamesResults = await connection.query('SELECT * FROM games;');
         const games = [...gamesResults.rows]
-        if(games.some(game => game.name === name)){
+        if(games.some(game => game.name.toUpperCase() === name.toUpperCase())){
             res.sendStatus(409);
             return;
         }
@@ -206,8 +206,10 @@ app.put("/customers/:id", async (req, res) => {
             return;
         }
 
-        await connection.query('UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5;',
-        [name, phone, cpf, birthday, id])
+        await connection.query(`UPDATE customers 
+            SET name = $1, phone = $2, cpf = $3, birthday = $4 
+            WHERE id = $5;`,
+            [name, phone, cpf, birthday, id])
         res.sendStatus(201)
 
     } catch (error){
@@ -268,6 +270,15 @@ app.post("/rentals", async(req, res) => {
             pricePerDay
         } = requisitionGame.rows[0];
 
+        const gameStock = Number(requisitionGame.rows[0].stockTotal);
+        const rentals = await connection.query('SELECT * FROM rentals WHERE "gameId" = $1;', [gameId]);
+        const onGoingRentals = rentals.rows.filter(rental => rental.returnDate === null);
+
+        if(onGoingRentals.length === gameStock){
+            res.sendStatus(400)
+            return;
+        }
+
         const rentDate = dayjs().format('YYYY-MM-DD');
         const originalPrice = Number(pricePerDay) * Number(daysRented);
 
@@ -283,11 +294,46 @@ app.post("/rentals", async(req, res) => {
     }
 })
 
+// problema do delayFee
+
+app.post("/rentals/:id/return", async (req, res) => {
+    try{
+        const { id } = req.params
+
+        const requiredRent = await connection.query('SELECT * FROM rentals WHERE id = $1;', [id])
+        
+        if(!requiredRent.rows.length){
+            res.sendStatus(404)
+            return;
+        } 
+
+        if(requiredRent.rows[0].returnDate){
+            res.sendStatus(400)
+            return;
+        }
+
+        const returnDate = dayjs().format('YYYY-MM-DD');
+        const { rentDate } = requiredRent.rows[0];
+        const delayFee = dayjs().format('YYYY-MM-DD');
+        
+        await connection.query(`UPDATE rentals 
+            SET "returnDate" = $2, "delayFee" = $3 
+            WHERE id = $1;`,
+            [id, returnDate, delayFee])
+        res.sendStatus(200)
+
+    } catch(error){
+        console.log(error);
+        res.sendStatus(500)
+    }
+})
+
 app.delete("/rentals/:id", async (req, res)=> {
     try{
         const { id } = req.params;
         const requiredRental = await connection.query('SELECT * FROM rentals WHERE id = $1;', [id]);
 
+        console.log(requiredRental.rows[0].returnDate);
         if(!requiredRental.rows.length){
             res.sendStatus(404)
             return;
