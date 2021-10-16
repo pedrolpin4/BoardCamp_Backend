@@ -257,18 +257,26 @@ app.post("/rentals", async(req, res) => {
 })
 
 app.delete("/rentals/:id", async (req, res)=> {
-    const { id } = req.params;
-    const requiredRental = await connection.query('SELECT * FROM rentals WHERE id = $1;', [id])
-    if(!requiredRental.rows.length){
-        res.sendStatus(404)
-    }
-    
-    if(requiredRental.rows[0].returnDate){
-        res.sendStatus(400)
-    }
+    try{
+        const { id } = req.params;
+        const requiredRental = await connection.query('SELECT * FROM rentals WHERE id = $1;', [id]);
 
-    await connection.query('DELETE FROM rentals WHERE id = $1;', [id])
-    res.sendStatus(200)
+        if(!requiredRental.rows.length){
+            res.sendStatus(404)
+            return;
+        }
+        
+        if(requiredRental.rows[0].returnDate){
+            res.sendStatus(400)
+            return;
+        }
+    
+        await connection.query('DELETE FROM rentals WHERE id = $1;', [id])
+        res.sendStatus(200)  
+
+    } catch (error){
+        res.sendStatus(500)
+    }
 })
 
 
