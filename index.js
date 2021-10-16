@@ -21,7 +21,7 @@ app.get("/categories", async (req, res) => {
         const result = await connection.query('SELECT * FROM categories;')
         res.send(result.rows)
     }
-    catch(erorr){
+    catch(error){
         res.sendStatus(500)
     }
 })
@@ -83,9 +83,9 @@ app.post("/games", async(req, res) => {
         const requestVerification = Joi.object({
             name: Joi.string().min(1).required(),
             image: Joi.string(),
-            stockTotal: Joi.number().required().min(1),
+            stockTotal: Joi.number().integer().required().min(1),
             categoryId: Joi.number(),
-            pricePerDay: Joi.number().required().min(1)
+            pricePerDay: Joi.number().integer().required().min(1)
         })
 
         if(requestVerification.validate(req.body).error || categories.every(cat => cat.id !== Number(categoryId))){
@@ -134,8 +134,6 @@ app.get("/customers/:id", async (req, res) => {
 
 
 
-// validar regexxxxxxxxxxxxxxx
-
 app.post("/customers", async (req, res) => {
     try{
         const sentCustomer = req.body;
@@ -148,9 +146,9 @@ app.post("/customers", async (req, res) => {
 
         const customerSquema = Joi.object({
             name: Joi.string().min(1).required(),
-            phone: Joi.string().min(10).max(11).required(),
-            cpf: Joi.string().min(11).max(11).required(),
-            birthday: Joi.string().required()
+            phone: Joi.string().min(10).max(11).required().pattern(/^[0-9]+$/),
+            cpf: Joi.string().min(11).max(11).required().pattern(/^[0-9]+$/),
+            birthday: Joi.string().required().pattern(/^\d{4}\-(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])$/)
         })
 
         if(customerSquema.validate(sentCustomer).error){
@@ -160,7 +158,8 @@ app.post("/customers", async (req, res) => {
 
         const customersResult = await connection.query('SELECT * FROM customers');
         const customers = customersResult.rows
-        if(customers.some(customer => customer.cpf === Number(cpf))){
+        
+        if(customers.some(customer => customer.cpf === cpf)){
             res.sendStatus(409)
             return;
         }
@@ -175,11 +174,9 @@ app.post("/customers", async (req, res) => {
     }
 })
 
-// validar regexxxxxxxxxxxxxxxxxx
-
 app.put("/customers/:id", async (req, res) => {
     try{
-        const {id} = req.params;
+        const { id } = req.params;
         const sentCustomer = req.body;
         const {
             name,
@@ -190,9 +187,9 @@ app.put("/customers/:id", async (req, res) => {
 
         const customerSquema = Joi.object({
             name: Joi.string().min(1).required(),
-            phone: Joi.string().min(10).max(11).required(),
-            cpf: Joi.string().min(11).max(11).required(),
-            birthday: Joi.string().required()
+            phone: Joi.string().min(10).max(11).required().pattern(/^[0-9]+$/),
+            cpf: Joi.string().min(11).max(11).required().pattern(/^[0-9]+$/),
+            birthday: Joi.string().required().pattern(/^\d{4}\-(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])$/)
         })
 
         if(customerSquema.validate(sentCustomer).error){
@@ -209,6 +206,53 @@ app.put("/customers/:id", async (req, res) => {
         res.sendStatus(500)
     }
 })
+
+app.get("/rentals", async(req,res) => {
+    try {
+        const { 
+            customerId, 
+            gameId 
+        } = req.query;
+
+        if(customerId){
+            const customersRentals = await connection.query('SELECT * FROM rentals WHERE customerId = $1;', [customerId]);
+            res.send(customersRentals.rows)
+            return;
+        }
+
+        if(gameId){
+            const gameRentals = await connection.query('SELECT * FROM rentals WHERE gameId = $1;', [gameId]);
+            res.send(gameRentals.rows)
+            return;
+        }
+
+        const rentals = await connection.query('SELECT * FROM rentals')
+        res.send(rentals.rows)
+
+    } catch(error){
+        res.sendStatus(500)
+    }
+})
+
+app.post("/rentals", async(req, res) => {
+    try{
+        const sentRental = req.body;
+        const {
+            customerId,
+            gameId,
+            daysRented
+        } = sentRental
+
+        const rentalSquema = Joi.object({
+            customerId: Joi.number()
+        })
+        
+
+    } catch(error){
+        res.sendStatus(500);
+    }
+})
+
 
 
 app.listen(4000);
