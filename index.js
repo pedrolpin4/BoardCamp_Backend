@@ -1,12 +1,10 @@
 import express from "express"
 import cors from "cors"
 import pg from 'pg';
-import Joi from "joi";
-import dayjs from "dayjs";
-import categories from "./src/categories/categories.js";
-import games from "./src/games/games.js";
-import customers from "./src/customer/customer.js";
-import rentals from "./src/rentals/rentals.js";
+import categories from "./routes/categories/categories.js";
+import games from "./routes/games/games.js";
+import customers from "./routes/customer/customer.js";
+import rentals from "./routes/rentals/rentals.js";
 
 const app = express();
 const { Pool } = pg;
