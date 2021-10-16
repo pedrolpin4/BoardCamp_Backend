@@ -2,8 +2,8 @@ import dayjs from "dayjs";
 import Joi from "joi";
 
 const getRentals = async (req, res, connection) => {
-    const { customerId, gameId } = req.query;
-    const basicResult = `
+    const { customerId, gameId, limit, offset } = req.query;
+    const requestQuery = `
         SELECT rentals.*, games.name AS "nameGame", games."categoryId", games.id AS "idGame",
         customers.id AS "idCustomer", customers.name,
         categories.name AS "nameCategory"
@@ -17,23 +17,71 @@ const getRentals = async (req, res, connection) => {
     `;
   
     try {
+        if(limit && offset){
+            const limitOffsetResult = customerId ? 
+                await connection.query(requestQuery + 
+                    'WHERE rentals."customerId" = $1 ORDER BY id LIMIT $2 OFFSET $3;', [customerId, limit, offset]):
+
+                gameId ?
+            
+                await connection.query(requestQuery + 
+                    'WHERE rentals."gameId" = $1 ORDER BY id LIMIT $2 OFFSET $3;', [gameId, limit, offset]):
+                await connection.query(requestQuery + 
+                    'ORDER BY id LIMIT $1 OFFSET $2;', [limit, offset]);
+
+            res.send(limitOffsetResult.rows)
+            return;
+        }
+
+        if(offset){
+            const offsetResult =  customerId ? 
+                await connection.query(requestQuery + 
+                    'WHERE rentals."customerId" = $1 ORDER BY id OFFSET $2;', [customerId, offset]):
+                    
+                    gameId ?
+                
+                    await connection.query(requestQuery + 
+                        'WHERE rentals."gameId" = $1 ORDER BY id OFFSET $2;', [gameId,offset]):
+                    await connection.query(requestQuery + 
+                        'ORDER BY id LIMIT $1 OFFSET $1;', [offset]);
+    
+
+            res.send(offsetResult.rows)
+            return;
+        }
+        if(limit){
+            const limitResult =  customerId ? 
+                await connection.query(requestQuery + 
+                    'WHERE rentals."customerId" = $1 ORDER BY id LIMIT $2;', [customerId, limit]):
+                
+                gameId ?
+
+                await connection.query(requestQuery + 
+                    'WHERE rentals."gameId" = $1 ORDER BY id LIMIT $2;', [gameId, limit]):
+                await connection.query(requestQuery + 
+                    'ORDER BY id LIMIT $1;', [limit]);
+
+            res.send(limitResult.rows)
+            return;
+        }
+      
       if (customerId) {
-        const customer = await connection.query(basicResult +
+        const customer = await connection.query(requestQuery +
             'WHERE rentals."customerId" = $1',[customerId]);
 
-        res.send(customer.rows[0]);
+        res.send(customer.rows);
         return;
       }
   
       if (gameId) {
-        const game = await connection.query(basicResult +
+        const game = await connection.query(requestQuery +
             'WHERE rentals."gameId" = $1',[gameId]);
             
-        res.send(game.rows[0]);
+        res.send(game.rows);
         return;
       }
   
-      const result = await connection.query(basicResult);
+      const result = await connection.query(requestQuery);
       const objectSquema = (rental) => {
           return {id: rental.id,
             customerId: rental.customerId,
@@ -65,14 +113,13 @@ const getRentals = async (req, res, connection) => {
 }
 
 const postRentals = async(req, res, connection) => {
-    try{
-        const sentRental = req.body;
-        const {
-            customerId,
-            gameId,
-            daysRented
-        } = sentRental
+    const {
+        customerId,
+        gameId,
+        daysRented
+    } = req.body
 
+    try{
         const daysSquema = Joi.number().min(1).integer().required();
 
         const requisitionGame = await connection.query('SELECT * FROM games WHERE id = $1;', [gameId])
@@ -133,9 +180,9 @@ const calcDelayFee = (rentDate, returnDate, daysRented, pricePerDay) => {
 }
 
 const finishRentals = async (req, res, connection) => {
-    try{
-        const { id } = req.params
+    const { id } = req.params
 
+    try{
         const requiredRent = await connection.query(`
         SELECT * FROM 
         rentals JOIN games 
@@ -175,8 +222,9 @@ const finishRentals = async (req, res, connection) => {
 }
 
 const deleteRentals = async (req, res, connection)=> {
+    const { id } = req.params;
+
     try{
-        const { id } = req.params;
         const requiredRental = await connection.query('SELECT * FROM rentals WHERE id = $1;', [id]);
 
         if(!requiredRental.rows.length){

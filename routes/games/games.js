@@ -1,16 +1,52 @@
 import Joi from "joi";
 
 const getGames = async (req, res, connection) => {
-    const { name } = req.query;
+    const { name, limit, offset } = req.query;
 
     try{
+        const requestQuery = 'SELECT * FROM games '
+        
+        if(limit && offset){
+            const limitOffsetResult = name ? 
+                await connection.query(requestQuery + 
+                    "WHERE name iLIKE $1 ORDER BY id LIMIT $2 OFFSET $3;", [name+"%",limit, offset]):
+                await connection.query(requestQuery + 
+                    "ORDER BY id LIMIT $1 OFFSET $2;", [limit, offset]);
+
+            res.send(limitOffsetResult.rows)
+            return;
+        }
+
+        if(offset){
+            const offsetResult =  name ? 
+                await connection.query(requestQuery + 
+                    "WHERE name iLIKE $1 ORDER BY id OFFSET $2;", [name+"%", offset]):
+                await connection.query(requestQuery + 
+                    "ORDER BY id OFFSET $1;", [offset]);
+
+            res.send(offsetResult.rows)
+            return;
+        }
+        if(limit){
+            const limitResult =  name ? 
+                await connection.query(requestQuery + 
+                    "WHERE name iLIKE $1 ORDER BY id LIMIT $2;", [name+"%",limit]):
+                await connection.query(requestQuery + 
+                    "ORDER BY id LIMIT $1 OFFSET $1;", [limit]);
+
+            res.send(limitResult.rows)
+            return;
+        }
+
         if (name){
-            const filteredGames = await connection.query('SELECT * FROM games WHERE name iLIKE $1;', [name+"%"]);
+            const filteredGames = await connection.query(requestQuery + 
+                'WHERE name iLIKE $1 ORDER BY id;', [name+"%"]);
+            
             res.send(filteredGames.rows);
             return;
         }
-        
-        const games = await connection.query('SELECT * FROM games;');
+
+        const games = await connection.query(requestQuery + ";");
         res.send(games.rows);   
     } catch(error){
         res.sendStatus(500);
