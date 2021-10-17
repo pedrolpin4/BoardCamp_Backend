@@ -114,6 +114,38 @@ const getRentals = async (req, res, connection) => {
     }
 }
 
+const financialStats = async(req, res, connection) => {
+    const { startDate, endDate } = req.query;
+    const requisitionQuery = 'SELECT * FROM rentals ';
+    const startDateJS = "CAST(" + dayjs(startDate).format('YYYY-MM-DD') + " AS DATE)";
+    const endDateJS = "CAST(" + dayjs(endDate).format('YYYY-MM-DD') + " AS DATE)";
+
+    const dateFilter = (startDate || endDate) ? 'WHERE ("rentDate" ' + 
+        (startDate ? 
+            endDate ?
+                `>= ${startDateJS} AND "rentDate" <= ${endDateJS})` :
+                `>= ${startDateJS})`
+            : `<= ${endDateJS})`) : "";
+    console.log(requisitionQuery + dateFilter);
+
+    try{
+        const result = await connection.query(requisitionQuery + dateFilter);
+
+        let revenue = 0;
+        result.rows.forEach(rental => {
+            revenue += rental.originalPrice + (rental.delayFee ? rental.delayFee : 0)
+        })
+
+        const rentals = result.rows.length
+        const average = Math.round(revenue / rentals);
+
+        res.send({ revenue, rentals, average })
+    } catch (error){
+        console.log(error);
+        res.sendStatus(500)
+    }
+}
+
 const postRentals = async(req, res, connection) => {
     const {
         customerId,
@@ -148,6 +180,7 @@ const postRentals = async(req, res, connection) => {
         }
 
         const rentDate = dayjs().format('YYYY-MM-DD');
+        console.log(rentDate);
         const originalPrice = Number(pricePerDay) * Number(daysRented);
 
         await connection.query(`INSERT INTO rentals 
@@ -251,7 +284,8 @@ const rentals = {
     getRentals,
     postRentals,
     finishRentals,
-    deleteRentals
+    deleteRentals,
+    financialStats
 }
 
 export default rentals

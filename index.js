@@ -37,6 +37,8 @@ app.put("/customers/:id", (req, res) => customers.editCustomers(req, res, connec
 
 app.get("/rentals", (req, res) => rentals.getRentals(req, res, connection));
 
+app.get("/rentals/metrics", (req, res) => rentals.financialStats(req, res, connection))
+
 app.post("/rentals", (req, res) => rentals.postRentals(req, res, connection))
 
 app.post("/rentals/:id/return", (req, res) => rentals.finishRentals(req, res, connection))
