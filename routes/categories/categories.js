@@ -1,29 +1,32 @@
 import Joi from "joi";
 
 const getCategories = async (req, res, connection) => {
-    const { limit, offset } = req.query
+    const { limit, offset, order, desc } = req.query;
+    const requestQuery = 'SELECT * FROM categories '
+    const columns = ["name", "id"]
+    const assortment = "ORDER BY "+ (columns.includes(order) ? order : "id") + (desc ? " DESC" : "");
+
     try{
-        const requestQuery = 'SELECT * FROM categories ORDER BY id '
         if(limit && offset){
             const limitOffsetResult = await connection.query(requestQuery + 
-                "LIMIT $1 OFFSET $2;", [limit, offset])
+                `${assortment} LIMIT $1 OFFSET $2`, [limit, offset])
             res.send(limitOffsetResult.rows)
             return;
         }
         if(offset){
             const offsetResult = await connection.query(requestQuery + 
-                "OFFSET $1;", [offset])
+                `${assortment} OFFSET $1;`, [offset])
             res.send(offsetResult.rows)
             return;
         }
         if(limit){
             const limitResult = await connection.query(requestQuery + 
-                "LIMIT $1;", [limit])
+                `${assortment} LIMIT $1;`, [limit])
             res.send(limitResult.rows)
             return;
         }
        
-        const result = await connection.query(requestQuery + ";")
+        const result = await connection.query(requestQuery + assortment + ";")
         res.send(result.rows)
     }
     catch(error){

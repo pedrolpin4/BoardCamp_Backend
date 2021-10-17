@@ -1,16 +1,19 @@
 import Joi from "joi";
 
 const getCustomers = async (req, res, connection) => {
-    const {cpf, limit, offset} = req.query;
+    const {cpf, limit, offset, order, desc} = req.query;
+    let requestQuery = 'SELECT * FROM customers '
+    const columns = ["name", "id", "phone", "cpf", "birthday"]
+    const assortment = "ORDER BY " + (columns.includes(order) ? `"${order}"` : "id") + (desc ? " DESC" : "")
+
     try{
-        let requestQuery = 'SELECT * FROM customers '
        
         if(limit && offset){
             const limitOffsetResult = cpf ? 
                 await connection.query(requestQuery + 
-                    "WHERE cpf LIKE $1 ORDER BY id LIMIT $2 OFFSET $3;", [Number(cpf)+"%", limit, offset]):
+                    `WHERE cpf LIKE $1 ${assortment} LIMIT $2 OFFSET $3;`, [Number(cpf)+`%`, limit, offset]):
                 await connection.query(requestQuery + 
-                    "ORDER BY id LIMIT $1 OFFSET $2;", [limit, offset]);
+                    `${assortment} LIMIT $1 OFFSET $2;`, [limit, offset]);
 
             res.send(limitOffsetResult.rows)
             return;
@@ -18,9 +21,9 @@ const getCustomers = async (req, res, connection) => {
         if(offset){
             const offsetResult = cpf ? 
                 await connection.query(requestQuery + 
-                    "WHERE cpf LIKE $1 ORDER BY id OFFSET $2;", [Number(cpf)+"%", offset]):
+                    `WHERE cpf LIKE $1 ${assortment} OFFSET $2;`, [Number(cpf)+`%`, offset]):
                 await connection.query(requestQuery + 
-                    "ORDER BY id OFFSET $1;", [offset]);
+                    `${assortment} OFFSET $1;`, [offset]);
 
             res.send(offsetResult.rows)
             return;
@@ -29,9 +32,9 @@ const getCustomers = async (req, res, connection) => {
         if(limit){
             const limitResult = cpf ? 
                 await connection.query(requestQuery + 
-                    "WHERE cpf LIKE $1 ORDER BY id LIMIT $2;", [Number(cpf)+"%", limit]):
+                    `WHERE cpf LIKE $1 ${assortment} LIMIT $2;`, [Number(cpf)+`%`, limit]):
                 await connection.query(requestQuery + 
-                    "ORDER BY id LIMIT $1;", [limit, offset]);
+                    `${assortment} LIMIT $1;`, [limit, offset]);
 
             res.send(limitResult.rows)
             return;
@@ -39,13 +42,13 @@ const getCustomers = async (req, res, connection) => {
 
         if (cpf){
             const filteredCustomers = await connection.query(requestQuery + 
-                'WHERE cpf LIKE $1 ORDER BY id ;', [Number(cpf)+"%"]);
+                `WHERE cpf LIKE $1 ${assortment};`, [Number(cpf)+`%`]);
             
             res.send(filteredCustomers.rows);
             return;
         }
         
-        const customers = await connection.query(requestQuery + ";");
+        const customers = await connection.query(requestQuery + assortment + ";");
         res.send(customers.rows);
 
     } catch(error){

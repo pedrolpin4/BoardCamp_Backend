@@ -1,17 +1,19 @@
 import Joi from "joi";
 
 const getGames = async (req, res, connection) => {
-    const { name, limit, offset } = req.query;
+    const { name, limit, offset, order, desc } = req.query;
+    const requestQuery = 'SELECT * FROM games '
+    const columns = ["categoryId", "id", "pricePerDay", "name", "image", "stockTotal"]
+    const assortment = "ORDER BY " + (columns.includes(order) ? `"${order}"` : "id")+ (desc ? " DESC" : "")
 
     try{
-        const requestQuery = 'SELECT * FROM games '
         
         if(limit && offset){
             const limitOffsetResult = name ? 
                 await connection.query(requestQuery + 
-                    "WHERE name iLIKE $1 ORDER BY id LIMIT $2 OFFSET $3;", [name+"%",limit, offset]):
+                    `WHERE name iLIKE $1 ${assortment} LIMIT $2 OFFSET $3;`, [name+"%",limit, offset]):
                 await connection.query(requestQuery + 
-                    "ORDER BY id LIMIT $1 OFFSET $2;", [limit, offset]);
+                    `${assortment} LIMIT $1 OFFSET $2;`, [limit, offset]);
 
             res.send(limitOffsetResult.rows)
             return;
@@ -20,9 +22,9 @@ const getGames = async (req, res, connection) => {
         if(offset){
             const offsetResult =  name ? 
                 await connection.query(requestQuery + 
-                    "WHERE name iLIKE $1 ORDER BY id OFFSET $2;", [name+"%", offset]):
+                    `WHERE name iLIKE $1 ${assortment} OFFSET $2;`, [name+"%", offset]):
                 await connection.query(requestQuery + 
-                    "ORDER BY id OFFSET $1;", [offset]);
+                    `${assortment} OFFSET $1;`, [offset]);
 
             res.send(offsetResult.rows)
             return;
@@ -30,9 +32,9 @@ const getGames = async (req, res, connection) => {
         if(limit){
             const limitResult =  name ? 
                 await connection.query(requestQuery + 
-                    "WHERE name iLIKE $1 ORDER BY id LIMIT $2;", [name+"%",limit]):
+                    `WHERE name iLIKE $1 ${assortment} LIMIT $2;`, [name+"%",limit]):
                 await connection.query(requestQuery + 
-                    "ORDER BY id LIMIT $1 OFFSET $1;", [limit]);
+                    `${assortment} LIMIT $1 OFFSET $1;`, [limit]);
 
             res.send(limitResult.rows)
             return;
@@ -40,13 +42,13 @@ const getGames = async (req, res, connection) => {
 
         if (name){
             const filteredGames = await connection.query(requestQuery + 
-                'WHERE name iLIKE $1 ORDER BY id;', [name+"%"]);
+                `WHERE name iLIKE $1 ${assortment};`, [name+"%"]);
             
             res.send(filteredGames.rows);
             return;
         }
 
-        const games = await connection.query(requestQuery + ";");
+        const games = await connection.query(requestQuery + assortment + ";");
         res.send(games.rows);   
     } catch(error){
         res.sendStatus(500);
