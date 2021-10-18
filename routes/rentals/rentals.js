@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import Joi from "joi";
 
 const getRentals = async (req, res, connection) => {
-    const { customerId, gameId, limit, offset, order, desc} = req.query;
+    const { customerId, gameId, limit, offset, order, desc, startDate, endDate, status} = req.query;
     const requestQuery = `
         SELECT rentals.*, games.name AS "nameGame", games."categoryId", games.id AS "idGame",
         customers.id AS "idCustomer", customers.name,
@@ -15,21 +15,51 @@ const getRentals = async (req, res, connection) => {
         JOIN categories
         ON games."categoryId" = categories.id 
     `;
+
     const columns = ["customerId", "id", "gameId", "daysRented", "returnDate", "originalPrice", "delayFee"]
     const assortment = "ORDER BY " + (columns.includes(order) ? `"${order}"` : "id")+ (desc ? " DESC" : "")
+    
+    const startDateJS = `'${dayjs(startDate).format('YYYY-MM-DD')}'::date`;
+    const endDateJS = `'${dayjs(endDate).format('YYYY-MM-DD')}'::date`;
 
+    const dateFilter = (startDate || endDate) ?
+        (startDate ? 
+            endDate ?
+                ` (rentals."rentDate" >= ${startDateJS} AND rentals."rentDate" <= ${endDateJS}) ` :
+                ` (rentals."rentDate" >= ${startDateJS}) `
+            : ` (rentals."rentDate" <= ${endDateJS}) `) : "";
+
+    const statusQuery = ((status === "open" || status === "closed") ? 
+            (
+                status === "open" ?
+                `rentals."returnDate" IS NULL ` :
+                `rentals."returnDate" IS NOT NULL `
+            ) : ""
+    );
+    
     try {
-        if(limit && offset){
+        if(limit && offset){ 
             const limitOffsetResult = customerId ? 
-                await connection.query(requestQuery + 
-                    `WHERE rentals."customerId" = $1 ${assortment} LIMIT $2 OFFSET $3;`, [customerId, limit, offset]):
+                    await connection.query(requestQuery + 
+                        `WHERE rentals."customerId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""} 
+                        ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment} LIMIT $2 OFFSET $3;`, 
+                        [customerId, limit, offset]):
 
-                gameId ?
+                    gameId ?
             
-                await connection.query(requestQuery + 
-                    `WHERE rentals."gameId" = $1 ${assortment} LIMIT $2 OFFSET $3;`, [gameId, limit, offset]):
-                await connection.query(requestQuery + 
-                    `${assortment} LIMIT $1 OFFSET $2;`, [limit, offset]);
+                    await connection.query(requestQuery + 
+                        `WHERE rentals."gameId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+                        ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment} LIMIT $2 OFFSET $3;`,
+                         [gameId, limit, offset]):
+                    await connection.query(requestQuery + 
+                        `${dateFilter ? 'WHERE ' + dateFilter : ""}
+                        ${status && dateFilter ? ` AND ${statusQuery}` : statusQuery ? `WHERE ${statusQuery}`: "" }
+                        ${assortment} LIMIT $1 OFFSET $2;`,
+                        [limit, offset]);
+                
+                console.log(requestQuery + 
+                    `WHERE rentals."gameId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+                    ${assortment} LIMIT $2 OFFSET $3;`)
 
             res.send(limitOffsetResult.rows)
             return;
@@ -37,31 +67,40 @@ const getRentals = async (req, res, connection) => {
 
         if(offset){
             const offsetResult =  customerId ? 
-                await connection.query(requestQuery + 
-                    `WHERE rentals."customerId" = $1 ${assortment} OFFSET $2;`, [customerId, offset]):
+                    await connection.query(requestQuery + 
+                        `WHERE rentals."customerId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+                        ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment} OFFSET $2;`, [customerId, offset]):
                     
                     gameId ?
                 
                     await connection.query(requestQuery + 
-                        `WHERE rentals."gameId" = $1 ${assortment} OFFSET $2;`, [gameId,offset]):
-                    await connection.query(requestQuery + 
-                        `${assortment} LIMIT $1 OFFSET $1;`, [offset]);
-    
+                        `WHERE rentals."gameId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+                        ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment} OFFSET $2;`, [gameId,offset]):
 
+                    await connection.query(requestQuery + 
+                        `${dateFilter ? 'WHERE ' + dateFilter : ""}
+                        ${status && dateFilter ? ` AND ${statusQuery}` : statusQuery ? `WHERE ${statusQuery}`: "" }
+                        ${assortment} OFFSET $1;`, [offset]);
+    
             res.send(offsetResult.rows)
             return;
         }
         if(limit){
             const limitResult =  customerId ? 
                 await connection.query(requestQuery + 
-                    `WHERE rentals."customerId" = $1 ${assortment} LIMIT $2;`, [customerId, limit]):
+                    `WHERE rentals."customerId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+                    ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment} LIMIT $2;`, [customerId, limit]):
                 
                 gameId ?
 
                 await connection.query(requestQuery + 
-                    `WHERE rentals."gameId" = $1 ${assortment} LIMIT $2;`, [gameId, limit]):
+                    `WHERE rentals."gameId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+                    ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment} LIMIT $2;`, [gameId, limit]):
                 await connection.query(requestQuery + 
-                    `${assortment} LIMIT $1;`, [limit]);
+                    `${dateFilter ? 'WHERE ' + dateFilter : ""}
+                    ${status && dateFilter ? ` AND ${statusQuery}` : statusQuery ? `WHERE ${statusQuery}`: "" }
+                    ${assortment} LIMIT $1;`, [limit]);
+        
 
             res.send(limitResult.rows)
             return;
@@ -69,7 +108,8 @@ const getRentals = async (req, res, connection) => {
       
       if (customerId) {
         const customer = await connection.query(requestQuery +
-            `WHERE rentals."customerId" = $1 ${assortment}`,[customerId]);
+            `WHERE rentals."customerId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+            ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment}`,[customerId]);
 
         res.send(customer.rows);
         return;
@@ -77,13 +117,16 @@ const getRentals = async (req, res, connection) => {
   
       if (gameId) {
         const game = await connection.query(requestQuery +
-            `WHERE rentals."gameId" = $1 ${assortment}`,[gameId]);
+            `WHERE rentals."gameId" = $1 ${dateFilter ? 'AND ' + dateFilter : ""}
+            ${statusQuery ? `AND ${statusQuery} ` : " "} ${assortment}`,[gameId]);
             
         res.send(game.rows);
         return;
       }
   
-      const result = await connection.query(requestQuery + assortment);
+      const result = await connection.query(requestQuery + (dateFilter ? 'WHERE ' + dateFilter : "") +
+      (status && dateFilter ? ` AND ${statusQuery}` : statusQuery ? `WHERE ${statusQuery}`: "" ) + assortment);
+
       const objectSquema = (rental) => {
           return {id: rental.id,
             customerId: rental.customerId,
@@ -107,8 +150,11 @@ const getRentals = async (req, res, connection) => {
 
       const squemedResult = result.rows.map((rental) => objectSquema(rental));
       res.send(squemedResult)
+      console.log(requestQuery + (dateFilter ? 'WHERE ' + dateFilter : "") +
+      (status && dateFilter ? ` AND ${statusQuery}` : statusQuery ? `WHERE ${statusQuery}`: "" ) + assortment)
 
     } catch (error) {
+        console.log(error)
       res.sendStatus(500);
     }
 }
