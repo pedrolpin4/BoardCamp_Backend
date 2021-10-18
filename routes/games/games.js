@@ -2,7 +2,9 @@ import Joi from "joi";
 
 const getGames = async (req, res, connection) => {
     const { name, limit, offset, order, desc } = req.query;
-    const requestQuery = 'SELECT * FROM games '
+    const requestQuery = `SELECT games.*, categories.name AS "categoryName" 
+    FROM games JOIN categories 
+    ON categories.id = games."categoryId" `;
     const columns = ["categoryId", "id", "pricePerDay", "name", "image", "stockTotal"]
     const assortment = "ORDER BY " + (columns.includes(order) ? `"${order}"` : "id")+ (desc ? " DESC" : "")
 
@@ -65,8 +67,10 @@ const postGames = async(req, res, connection) => {
     } = req.body;
 
     try{
-        const categoriesResult = await connection.query('SELECT * FROM categories;');
-        const categories = [...categoriesResult.rows];  
+        const gamesResult = await connection.query(`SELECT games.*, categories.name AS "categoryName" 
+        FROM games JOIN categories 
+        ON categories.id = games."categoryId";`);
+        const games = [...gamesResult.rows];  
         const requestVerification = Joi.object({
             name: Joi.string().min(1).required(),
             image: Joi.string().uri(),
@@ -74,14 +78,13 @@ const postGames = async(req, res, connection) => {
             categoryId: Joi.number(),
             pricePerDay: Joi.number().integer().required().min(1)
         })
+        console.log(games)
 
-        if(requestVerification.validate(req.body).error || categories.every(cat => cat.id !== Number(categoryId))){
+        if(requestVerification.validate(req.body).error || games.every(cat => cat.categoryId !== Number(categoryId))){
             res.sendStatus(400);
             return;
         }    
 
-        const gamesResults = await connection.query('SELECT * FROM games;');
-        const games = [...gamesResults.rows]
         if(games.some(game => game.name.toUpperCase() === name.toUpperCase())){
             res.sendStatus(409);
             return;
@@ -98,6 +101,7 @@ const postGames = async(req, res, connection) => {
         res.sendStatus(201);
 
     } catch(error){
+        console.log(error)
         res.sendStatus(500);
     }
 }
