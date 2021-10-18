@@ -77,7 +77,6 @@ const postGames = async(req, res, connection) => {
 
         if(requestVerification.validate(req.body).error || categories.every(cat => cat.id !== Number(categoryId))){
             res.sendStatus(400);
-            console.log(requestVerification.validate(req.body).error);
             return;
         }    
 

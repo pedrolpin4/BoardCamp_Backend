@@ -30,7 +30,6 @@ const getCategories = async (req, res, connection) => {
         res.send(result.rows)
     }
     catch(error){
-        console.log(error);
         res.sendStatus(500)
     }
 }

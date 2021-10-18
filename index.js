@@ -1,5 +1,5 @@
-import express from "express"
-import cors from "cors"
+import express from "express";
+import cors from "cors";
 import pg from 'pg';
 import categories from "./routes/categories/categories.js";
 import games from "./routes/games/games.js";

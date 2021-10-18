@@ -52,7 +52,6 @@ const getCustomers = async (req, res, connection) => {
         res.send(customers.rows);
 
     } catch(error){
-        console.log(error);
         res.sendStatus(500);
     }
 }
@@ -99,7 +98,6 @@ const postCustomers = async (req, res, connection) => {
         res.sendStatus(201)
 
     } catch (error){
-        console.log(error);
         res.sendStatus(500)
     }
 }
@@ -115,7 +113,6 @@ const editCustomers = async (req, res, connection) => {
     } = sentCustomer
 
     if(customerSquema.validate(sentCustomer).error){
-        console.log(customerSquema.validate(sentCustomer).error);
         res.sendStatus(400)
         return;
     }
@@ -136,7 +133,6 @@ const editCustomers = async (req, res, connection) => {
         res.sendStatus(201)
 
     } catch (error){
-        console.log(error);
         res.sendStatus(500)
     }
 }

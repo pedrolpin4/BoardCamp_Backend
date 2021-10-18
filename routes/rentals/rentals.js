@@ -109,7 +109,6 @@ const getRentals = async (req, res, connection) => {
       res.send(squemedResult)
 
     } catch (error) {
-      console.log(error);
       res.sendStatus(500);
     }
 }
@@ -117,8 +116,8 @@ const getRentals = async (req, res, connection) => {
 const financialStats = async(req, res, connection) => {
     const { startDate, endDate } = req.query;
     const requisitionQuery = 'SELECT * FROM rentals ';
-    const startDateJS = "CAST(" + dayjs(startDate).format('YYYY-MM-DD') + " AS DATE)";
-    const endDateJS = "CAST(" + dayjs(endDate).format('YYYY-MM-DD') + " AS DATE)";
+    const startDateJS = `'${dayjs(startDate).format('YYYY-MM-DD')}'::date`;
+    const endDateJS = `'${dayjs(endDate).format('YYYY-MM-DD')}'::date`;
 
     const dateFilter = (startDate || endDate) ? 'WHERE ("rentDate" ' + 
         (startDate ? 
@@ -127,7 +126,6 @@ const financialStats = async(req, res, connection) => {
                 `>= ${startDateJS})`
             : `<= ${endDateJS})`) : "";
     console.log(requisitionQuery + dateFilter);
-
     try{
         const result = await connection.query(requisitionQuery + dateFilter);
 
@@ -141,7 +139,6 @@ const financialStats = async(req, res, connection) => {
 
         res.send({ revenue, rentals, average })
     } catch (error){
-        console.log(error);
         res.sendStatus(500)
     }
 }
@@ -180,7 +177,6 @@ const postRentals = async(req, res, connection) => {
         }
 
         const rentDate = dayjs().format('YYYY-MM-DD');
-        console.log(rentDate);
         const originalPrice = Number(pricePerDay) * Number(daysRented);
 
         await connection.query(`INSERT INTO rentals 
@@ -190,7 +186,6 @@ const postRentals = async(req, res, connection) => {
         
         res.sendStatus(201)
     } catch(error){
-        console.log(error);
         res.sendStatus(500);
     }
 }
@@ -251,7 +246,6 @@ const finishRentals = async (req, res, connection) => {
         res.sendStatus(200)
 
     } catch(error){
-        console.log(error);
         res.sendStatus(500)
     }
 }
